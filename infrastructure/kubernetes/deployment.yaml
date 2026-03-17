@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-dashboard
+  namespace: default
+  labels:
+    app: weather-dashboard
+    project: devops-cse3253
+    version: "IMAGE_TAG_PLACEHOLDER"
+
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: weather-dashboard
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+
+  template:
+    metadata:
+      labels:
+        app: weather-dashboard
+        version: "IMAGE_TAG_PLACEHOLDER"
+    spec:
+      containers:
+        - name: weather-dashboard
+          image: devopsproject/weather-dashboard:IMAGE_TAG_PLACEHOLDER
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 5000
+              name: http
+
+          envFrom:
+            - configMapRef:
+                name: weather-dashboard-config
+
+          env:
+            - name: OPENWEATHER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: weather-dashboard-secret
+                  key: OPENWEATHER_API_KEY
+
+          volumeMounts:
+            - name: weather-data
+              mountPath: /app/data
+
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+
+      volumes:
+        - name: weather-data
+          persistentVolumeClaim:
+            claimName: weather-dashboard-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: weather-dashboard-pvc
+  namespace: default
+  labels:
+    app: weather-dashboard
+
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi

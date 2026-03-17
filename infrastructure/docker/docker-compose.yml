@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+
+  app:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile
+    container_name: weather-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+      - FLASK_DEBUG=${FLASK_DEBUG:-false}
+      - PORT=5000
+      - DB_PATH=/app/data/weather.db
+    volumes:
+      - weather_data:/app/data
+    networks:
+      - weather-net
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  nagios:
+    image: jasonrivers/nagios:latest
+    container_name: weather-nagios
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      - NAGIOSADMIN_USER=nagiosadmin
+      - NAGIOSADMIN_PASS=nagios123
+    volumes:
+      - ../../monitoring/nagios:/opt/nagios/etc/conf.d
+      - nagios_data:/opt/nagios/var
+    networks:
+      - weather-net
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  weather_data:
+    driver: local
+  nagios_data:
+    driver: local
+
+networks:
+  weather-net:
+    driver: bridge
