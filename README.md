@@ -270,11 +270,3 @@ main
 
 ---
 
-## Contact
-
-**Student:** [Your Name]
-**Email:** [Your University Email]
-**GitHub:** [Your GitHub Profile]
-
-**Course Coordinator:** Mr. Jay Shankar Sharma
-**Consultation Hours:** Thursday & Friday, 5–6 PM, LHC 308F
