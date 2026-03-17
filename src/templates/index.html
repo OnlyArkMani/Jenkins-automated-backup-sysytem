@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Atmos — Weather Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #07090f;
+      --surface:   #0e1117;
+      --card:      #13161f;
+      --border:    rgba(255,255,255,0.07);
+      --accent:    #5bf0c4;
+      --accent2:   #4a9eff;
+      --text:      #e8eaf0;
+      --muted:     #5a6070;
+      --danger:    #ff5f6d;
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Background grid ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(91,240,196,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(91,240,196,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    /* ── Layout ── */
+    .wrapper {
+      position: relative; z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 56px;
+    }
+    .logo {
+      font-family: var(--font-head);
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      background: linear-gradient(120deg, var(--accent) 0%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .logo-tag {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+
+    /* ── Search box ── */
+    .search-wrap {
+      display: flex;
+      gap: 0;
+      margin-bottom: 48px;
+    }
+    .search-input {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-right: none;
+      border-radius: 8px 0 0 8px;
+      padding: 16px 20px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input::placeholder { color: var(--muted); }
+    .search-input:focus { border-color: var(--accent); }
+    .search-btn {
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 0 8px 8px 0;
+      padding: 16px 28px;
+      font-family: var(--font-head);
+      font-weight: 600;
+      font-size: 0.9rem;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .search-btn:hover  { opacity: 0.85; }
+    .search-btn:active { transform: scale(0.97); }
+
+    /* ── Error banner ── */
+    .error-banner {
+      display: none;
+      background: rgba(255,95,109,0.1);
+      border: 1px solid rgba(255,95,109,0.3);
+      border-radius: 8px;
+      padding: 14px 18px;
+      color: var(--danger);
+      font-size: 0.88rem;
+      margin-bottom: 28px;
+    }
+    .error-banner.show { display: block; }
+
+    /* ── Weather card ── */
+    .weather-card {
+      display: none;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px;
+      margin-bottom: 40px;
+      animation: fadeUp 0.4s ease;
+    }
+    .weather-card.show { display: block; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 32px;
+    }
+    .city-name {
+      font-family: var(--font-head);
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .city-country {
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
+    .condition-badge {
+      background: rgba(91,240,196,0.1);
+      border: 1px solid rgba(91,240,196,0.2);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 0.8rem;
+      color: var(--accent);
+      letter-spacing: 1px;
+    }
+
+    .temp-display {
+      font-family: var(--font-head);
+      font-size: 5rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -3px;
+      background: linear-gradient(120deg, #fff 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    .feels-like {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 28px 0;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.7rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .stat-value {
+      font-family: var(--font-head);
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+    .stat-unit {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-left: 2px;
+    }
+
+    /* ── Recent searches ── */
+    .section-title {
+      font-family: var(--font-head);
+      font-size: 0.75rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .recent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .recent-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .recent-item:hover {
+      border-color: rgba(91,240,196,0.3);
+      background: rgba(91,240,196,0.04);
+    }
+    .recent-city { font-size: 0.9rem; }
+    .recent-meta {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+    .recent-temp { color: var(--accent); font-family: var(--font-head); font-size: 0.85rem; }
+
+    /* ── Loading spinner ── */
+    .spinner {
+      display: none;
+      width: 20px; height: 20px;
+      border: 2px solid rgba(91,240,196,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto;
+    }
+    .spinner.show { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .temp-display { font-size: 3.5rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <span class="logo">atmos</span>
+    <span class="logo-tag">weather dashboard</span>
+  </header>
+
+  <!-- Search -->
+  <div class="search-wrap">
+    <input id="cityInput" class="search-input" type="text"
+           placeholder="Enter city name… e.g. Mumbai, London, Tokyo"
+           autocomplete="off"/>
+    <button class="search-btn" onclick="searchWeather()">FETCH</button>
+  </div>
+
+  <div id="errorBanner" class="error-banner"></div>
+  <div id="spinner" class="spinner"></div>
+
+  <!-- Weather Result Card -->
+  <div id="weatherCard" class="weather-card">
+    <div class="card-top">
+      <div>
+        <div id="cityName" class="city-name"></div>
+        <div id="cityCountry" class="city-country"></div>
+      </div>
+      <span id="conditionBadge" class="condition-badge"></span>
+    </div>
+
+    <div id="tempDisplay" class="temp-display"></div>
+    <div id="feelsLike" class="feels-like"></div>
+
+    <hr class="divider"/>
+
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-label">Humidity</div>
+        <div class="stat-value" id="humidity">—<span class="stat-unit">%</span></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Wind</div>
+        <div class="stat-value" id="windSpeed">—<span class="stat-unit">m/s</span></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Pressure</div>
+        <div class="stat-value" id="pressure">—<span class="stat-unit">hPa</span></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Visibility</div>
+        <div class="stat-value" id="visibility">—<span class="stat-unit">km</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Searches -->
+  {% if recent %}
+  <div>
+    <div class="section-title">Recent Searches</div>
+    <div class="recent-list" id="recentList">
+      {% for r in recent %}
+      <div class="recent-item" onclick="quickSearch('{{ r.city }}')">
+        <span class="recent-city">{{ r.city }}, {{ r.country }}</span>
+        <div class="recent-meta">
+          <span>{{ r.condition }}</span>
+          <span class="recent-temp">{{ r.temp }}°C</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+  const input  = document.getElementById('cityInput');
+  const card   = document.getElementById('weatherCard');
+  const err    = document.getElementById('errorBanner');
+  const spin   = document.getElementById('spinner');
+
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') searchWeather(); });
+
+  function showError(msg) {
+    err.textContent = msg;
+    err.classList.add('show');
+    card.classList.remove('show');
+  }
+
+  function hideError() { err.classList.remove('show'); }
+
+  async function searchWeather() {
+    const city = input.value.trim();
+    if (!city) { showError('Please enter a city name.'); return; }
+
+    hideError();
+    card.classList.remove('show');
+    spin.classList.add('show');
+
+    try {
+      const res  = await fetch(`/api/weather?city=${encodeURIComponent(city)}`);
+      const json = await res.json();
+      spin.classList.remove('show');
+
+      if (json.status !== 'ok') { showError(json.message); return; }
+
+      renderCard(json.data);
+    } catch (e) {
+      spin.classList.remove('show');
+      showError('Network error. Please try again.');
+    }
+  }
+
+  function renderCard(d) {
+    document.getElementById('cityName').textContent    = d.city;
+    document.getElementById('cityCountry').textContent = d.country;
+    document.getElementById('conditionBadge').textContent = d.description;
+    document.getElementById('tempDisplay').textContent = `${d.temp}°`;
+    document.getElementById('feelsLike').textContent   = `Feels like ${d.feels_like}°C`;
+    document.getElementById('humidity').innerHTML      = `${d.humidity}<span class="stat-unit">%</span>`;
+    document.getElementById('windSpeed').innerHTML     = `${d.wind_speed}<span class="stat-unit">m/s</span>`;
+    document.getElementById('pressure').innerHTML      = `${d.pressure}<span class="stat-unit">hPa</span>`;
+    document.getElementById('visibility').innerHTML    = `${d.visibility}<span class="stat-unit">km</span>`;
+    card.classList.add('show');
+  }
+
+  function quickSearch(city) {
+    input.value = city;
+    searchWeather();
+  }
+</script>
+</body>
+</html>
