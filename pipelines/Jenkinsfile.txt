@@ -1,0 +1,157 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(
+            name: 'BRANCH',
+            defaultValue: 'main',
+            description: 'Git branch to build'
+        )
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['dev', 'staging', 'prod'],
+            description: 'Target deployment environment'
+        )
+        booleanParam(
+            name: 'SKIP_TESTS',
+            defaultValue: false,
+            description: 'Skip test stage (use only for hotfixes)'
+        )
+    }
+
+    environment {
+        APP_NAME      = 'weather-dashboard'
+        IMAGE_NAME    = "devopsproject/${APP_NAME}"
+        IMAGE_TAG     = "${env.BUILD_NUMBER}"
+        FULL_IMAGE    = "${IMAGE_NAME}:${IMAGE_TAG}"
+        LATEST_IMAGE  = "${IMAGE_NAME}:latest"
+
+        OPENWEATHER_API_KEY = credentials('openweather-api-key')
+        DOCKER_HUB_CREDS    = credentials('dockerhub-credentials')
+    }
+
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        ansiColor('xterm')
+        timestamps()
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo "==> Checking out branch: ${params.BRANCH}"
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: "*/${params.BRANCH}"]],
+                    userRemoteConfigs: [[url: 'https://github.com/OnlyArkMani/devopsprojectweatherdashboard.git']]
+                ])
+                sh 'echo "Commit: $(git log -1 --oneline)"'
+            }
+        }
+
+        stage('Lint') {
+            steps {
+                dir('src') {
+                    sh '''
+                        pip install flake8 --quiet --break-system-packages || true
+                        flake8 app.py --max-line-length=100
+                    '''
+                }
+            }
+        }
+
+        stage('Test') {
+            when {
+                expression { !params.SKIP_TESTS }
+            }
+            steps {
+                dir('src') {
+                    sh '''
+                        pip install pytest pytest-cov flask requests --quiet --break-system-packages || true
+                        pytest tests/test_app.py --cov=. --cov-report=xml
+                    '''
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build \
+                        -f infrastructure/docker/Dockerfile \
+                        -t ${FULL_IMAGE} \
+                        -t ${LATEST_IMAGE} \
+                        .
+                '''
+            }
+        }
+
+        stage('Security Scan') {
+            steps {
+                sh '''
+                    trivy image ${FULL_IMAGE} || true
+                '''
+            }
+        }
+
+        stage('Deploy Dev') {
+            when {
+                expression { params.ENVIRONMENT == 'dev' }
+            }
+            steps {
+                sh '''
+                    export OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+                    docker-compose -f infrastructure/docker/docker-compose.yml up -d --build
+                '''
+            }
+        }
+
+        stage('Deploy Staging') {
+            when {
+                expression { params.ENVIRONMENT == 'staging' }
+            }
+            steps {
+                sh '''
+                    kubectl apply -f infrastructure/kubernetes/
+                '''
+            }
+        }
+
+        stage('Deploy Production') {
+            when {
+                expression { params.ENVIRONMENT == 'prod' }
+            }
+            steps {
+                input message: "Deploy to production?"
+                sh '''
+                    kubectl set image deployment/${APP_NAME} ${APP_NAME}=${FULL_IMAGE}
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            emailext(
+                subject: "Build Passed",
+                body: "Pipeline passed successfully",
+                to: 'arkmanimishra@gmail.com'
+            )
+        }
+
+        failure {
+            emailext(
+                subject: "Build Failed",
+                body: "Pipeline failed",
+                to: 'arkmanimishra@gmail.com'
+            )
+        }
+
+        always {
+            sh 'docker image prune -f || true'
+            cleanWs()
+        }
+    }
+}
