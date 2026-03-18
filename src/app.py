@@ -1,4 +1,3 @@
-
 import os
 import sqlite3
 import logging
@@ -12,7 +11,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 logger = logging.getLogger(__name__)
-
 
 app = Flask(__name__)
 
@@ -72,7 +70,6 @@ def get_recent_searches(limit=5):
     return [dict(r) for r in rows]
 
 
-
 def fetch_weather(city: str) -> dict:
     """
     Call OpenWeatherMap and return a normalised dict.
@@ -110,9 +107,8 @@ def fetch_weather(city: str) -> dict:
         "condition": data["weather"][0]["main"],
         "description": data["weather"][0]["description"].title(),
         "icon": data["weather"][0]["icon"],
-        "visibility": data.get("visibility", 0) // 1000,  # km
+        "visibility": data.get("visibility", 0) // 1000,
     }
-
 
 
 @app.route("/")
@@ -158,7 +154,6 @@ def api_recent():
 def health():
     """Health-check endpoint used by Nagios / K8s liveness probe."""
     return jsonify({"status": "healthy", "timestamp": datetime.utcnow().isoformat()})
-
 
 
 if __name__ == "__main__":
