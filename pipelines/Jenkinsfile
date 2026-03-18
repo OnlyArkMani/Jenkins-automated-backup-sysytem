@@ -78,6 +78,7 @@ pipeline {
             steps {
                 echo "==> Deploying to ${params.ENVIRONMENT}"
                 bat """
+                    set OPENWEATHER_API_KEY=57e1ac0e6af235abd03d4471f7fe3cd9
                     docker-compose -f infrastructure/docker/docker-compose.yml up -d
                     echo App deployed! Visit http://localhost:5000
                 """
