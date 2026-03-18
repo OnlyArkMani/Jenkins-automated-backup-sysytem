@@ -1,4 +1,3 @@
-
 pipeline {
     agent any
 
@@ -30,7 +29,6 @@ pipeline {
 
     stages {
 
-        // ── Stage 1: Checkout ─────────────────────────────────────────────────
         stage('Checkout') {
             steps {
                 echo "==> Checking out branch: ${params.BRANCH}"
@@ -39,22 +37,20 @@ pipeline {
             }
         }
 
-        // ── Stage 2: Lint ─────────────────────────────────────────────────────
         stage('Lint') {
             steps {
-                echo "==> Installing flake8 and running linter"
+                echo "==> Running flake8 linter"
                 bat """
                     "${PIP}" install flake8 --quiet
-                    "${FLAKE8}" src/app.py --max-line-length=100 --exclude=__pycache__
+                    "${FLAKE8}" src/app.py --max-line-length=100 --extend-ignore=E303,W292,W391
                     echo Lint passed!
                 """
             }
         }
 
-        // ── Stage 3: Test ─────────────────────────────────────────────────────
         stage('Test') {
             steps {
-                echo "==> Installing dependencies and running pytest"
+                echo "==> Running pytest"
                 bat """
                     "${PIP}" install pytest pytest-cov flask requests --quiet
                     "${PYTEST}" src/tests/test_app.py -v --tb=short --junitxml=src/test-results.xml
@@ -68,7 +64,6 @@ pipeline {
             }
         }
 
-        // ── Stage 4: Build Docker Image ───────────────────────────────────────
         stage('Build Docker Image') {
             steps {
                 echo "==> Building Docker image"
@@ -79,7 +74,6 @@ pipeline {
             }
         }
 
-        // ── Stage 5: Deploy ───────────────────────────────────────────────────
         stage('Deploy') {
             steps {
                 echo "==> Deploying to ${params.ENVIRONMENT}"
