@@ -11,7 +11,7 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+      - OPENWEATHER_API_KEY=57e1ac0e6af235abd03d4471f7fe3cd9
       - FLASK_DEBUG=${FLASK_DEBUG:-false}
       - PORT=5000
       - DB_PATH=/app/data/weather.db
