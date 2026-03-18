@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -12,6 +13,13 @@ pipeline {
             choices: ['dev', 'staging', 'prod'],
             description: 'Target deployment environment'
         )
+    }
+
+    environment {
+        PYTHON = 'C:\\Users\\arkma\\AppData\\Local\\Programs\\Python\\Python311\\python.exe'
+        PIP    = 'C:\\Users\\arkma\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\pip.exe'
+        FLAKE8 = 'C:\\Users\\arkma\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\flake8.exe'
+        PYTEST = 'C:\\Users\\arkma\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\pytest.exe'
     }
 
     options {
@@ -34,24 +42,23 @@ pipeline {
         // ── Stage 2: Lint ─────────────────────────────────────────────────────
         stage('Lint') {
             steps {
-                echo "==> Running flake8 linter"
-                bat '''
-                    cd src
-                    pip install flake8 --quiet
-                    flake8 app.py --max-line-length=100 --exclude=__pycache__
-                '''
+                echo "==> Installing flake8 and running linter"
+                bat """
+                    "${PIP}" install flake8 --quiet
+                    "${FLAKE8}" src/app.py --max-line-length=100 --exclude=__pycache__
+                    echo Lint passed!
+                """
             }
         }
 
         // ── Stage 3: Test ─────────────────────────────────────────────────────
         stage('Test') {
             steps {
-                echo "==> Running pytest"
-                bat '''
-                    cd src
-                    pip install pytest pytest-cov flask requests --quiet
-                    pytest tests/test_app.py -v --tb=short --junitxml=test-results.xml
-                '''
+                echo "==> Installing dependencies and running pytest"
+                bat """
+                    "${PIP}" install pytest pytest-cov flask requests --quiet
+                    "${PYTEST}" src/tests/test_app.py -v --tb=short --junitxml=src/test-results.xml
+                """
             }
             post {
                 always {
@@ -65,7 +72,10 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 echo "==> Building Docker image"
-                bat 'docker build -f infrastructure/docker/Dockerfile -t devopsproject/weather-dashboard:%BUILD_NUMBER% -t devopsproject/weather-dashboard:latest .'
+                bat """
+                    docker build -f infrastructure/docker/Dockerfile -t devopsproject/weather-dashboard:%BUILD_NUMBER% -t devopsproject/weather-dashboard:latest .
+                    echo Docker image built successfully!
+                """
             }
         }
 
@@ -73,8 +83,10 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo "==> Deploying to ${params.ENVIRONMENT}"
-                bat 'docker-compose -f infrastructure/docker/docker-compose.yml --env-file .env up -d'
-                echo "App deployed! Visit http://localhost:5000"
+                bat """
+                    docker-compose -f infrastructure/docker/docker-compose.yml --env-file .env up -d
+                    echo App deployed! Visit http://localhost:5000
+                """
             }
         }
 
