@@ -1,7 +1,7 @@
 #  Weather Dashboard
 
-**Student Name:** [Your Name]
-**Registration No:** [Your Registration Number]
+**Student Name:** Ark Mani
+**Registration No:** 23FE10CSE00793
 **Course:** CSE3253 DevOps [PE6]
 **Semester:** VI (2025–2026)
 **Project Type:** Jenkins & CI/CD
